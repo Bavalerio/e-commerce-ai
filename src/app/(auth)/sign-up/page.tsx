@@ -1,0 +1,42 @@
+import { SignUp } from '@clerk/nextjs';
+import { Container, Box, Typography } from '@mui/material';
+
+export default function SignUpPage() {
+  return (
+    <Container maxWidth="sm" className="py-8">
+      <Box
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
+        justifyContent="center"
+        minHeight="calc(100vh - 200px)"
+        gap={4}
+      >
+        <Typography 
+          variant="h3" 
+          component="h1" 
+          textAlign="center"
+          className="text-gray-800 mb-4"
+        >
+          Join E-Commerce AI
+        </Typography>
+        <Typography 
+          variant="body1" 
+          textAlign="center"
+          className="text-gray-600 mb-6"
+        >
+          Create your account to start shopping
+        </Typography>
+        <SignUp 
+          appearance={{
+            elements: {
+              card: "shadow-lg border-0",
+              headerTitle: "hidden",
+              headerSubtitle: "hidden",
+            }
+          }}
+        />
+      </Box>
+    </Container>
+  );
+}
