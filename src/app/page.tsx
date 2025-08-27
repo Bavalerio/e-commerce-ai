@@ -1,290 +1,450 @@
 'use client';
 
-import { 
-  Container, 
-  Box, 
-  Typography, 
-  Button, 
-  Grid2 as Grid, 
-  Card, 
-  CardContent, 
-  CardActions,
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Container,
+  Typography,
+  Grid,
+  Button,
+  Paper,
   Chip,
-  AppBar,
-  Toolbar,
-  IconButton,
-  BottomNavigation,
-  BottomNavigationAction,
-  useMediaQuery,
-  useTheme,
-  Fab
+  CircularProgress,
+  Alert,
 } from '@mui/material';
-import { 
-  Menu as MenuIcon, 
-  ShoppingCart, 
-  Search, 
-  Home, 
-  Category, 
-  Person,
-  Favorite,
-  GetApp
+import {
+  ShoppingBag as ShoppingIcon,
+  Psychology as AIIcon,
+  PhotoCamera as CameraIcon,
+  ChatBubbleOutline as ChatIcon,
 } from '@mui/icons-material';
-import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
-import { useUIStore } from '@/store/ui-store';
-import { useCartStore } from '@/store/cart-store';
-import { useEffect, useState } from 'react';
+// import { useTranslations } from 'next-intl';
+import ProductCard from '@/components/ui/ProductCard';
+import { Product, PaginatedResponse } from '@/types';
 
-export default function HomePage() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { setMobileMenuOpen, installPrompt, setInstallPrompt } = useUIStore();
-  const { itemCount } = useCartStore();
-  const [showInstallButton, setShowInstallButton] = useState(false);
+export default function Homepage() {
+  // const t = useTranslations('homepage');
+  // const tCommon = useTranslations('common');
+  
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
+  const [complementaryProducts, setComplementaryProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // PWA Install handling
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-      setShowInstallButton(true);
-    };
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        // Fetch featured products (products with high rating become featured)
+        const featuredResponse = await fetch('/api/products?featured=true&limit=8');
+        if (!featuredResponse.ok) {
+          throw new Error('Failed to fetch featured products');
+        }
+        const featuredData: PaginatedResponse<Product> = await featuredResponse.json();
+        
+        if (featuredData.success) {
+          setFeaturedProducts(featuredData.data);
+        }
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, [setInstallPrompt]);
-
-  const handleInstallClick = async () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        setShowInstallButton(false);
-        setInstallPrompt(null);
+        // If we don't have enough featured products, get some regular products
+        if (!featuredData.success || featuredData.data.length < 4) {
+          const allProductsResponse = await fetch('/api/products?limit=12');
+          if (allProductsResponse.ok) {
+            const allProductsData: PaginatedResponse<Product> = await allProductsResponse.json();
+            if (allProductsData.success) {
+              // Take first 8 as featured if we don't have enough featured products
+              if (!featuredData.success || featuredData.data.length < 4) {
+                setFeaturedProducts(allProductsData.data.slice(0, 8));
+              }
+              // Set trending and complementary products
+              setTrendingProducts(allProductsData.data.slice(0, 4));
+              setComplementaryProducts(allProductsData.data.slice(4, 8));
+            }
+          }
+        } else {
+          // Set trending and complementary from featured products
+          setTrendingProducts(featuredData.data.slice(0, 4));
+          setComplementaryProducts(featuredData.data.slice(4, 8));
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load products');
+      } finally {
+        setLoading(false);
       }
-    }
-  };
+    };
 
+    fetchProducts();
+  }, []);
   return (
-    <>
-      {/* Mobile-First AppBar */}
-      <AppBar position="fixed" className="bg-white shadow-sm">
-        <Toolbar>
-          <IconButton
-            edge="start"
-            onClick={() => setMobileMenuOpen(true)}
-            className="mr-2 md:hidden"
-          >
-            <MenuIcon />
-          </IconButton>
-          
-          <Typography variant="h6" component="div" className="flex-grow font-bold text-primary">
-            E-Commerce AI
-          </Typography>
-
-          <div className="flex items-center gap-2">
-            <IconButton>
-              <Search />
-            </IconButton>
-            
-            <IconButton className="relative">
-              <ShoppingCart />
-              {itemCount > 0 && (
-                <Chip 
-                  label={itemCount} 
-                  size="small" 
-                  color="error"
-                  className="absolute -top-1 -right-1 h-5 min-w-5 text-xs"
-                />
-              )}
-            </IconButton>
-
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button variant="contained" size="small" className="ml-2">
-                  Sign In
+    <Box sx={{ minHeight: '100vh' }}>
+      {/* Hero Section */}
+      <Box
+        sx={{
+          background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+          color: 'white',
+          py: { xs: 8, md: 12 },
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <Container maxWidth="xl">
+          <Grid container spacing={4} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Typography
+                variant="h1"
+                sx={{
+                  fontWeight: 300,
+                  mb: 2,
+                  fontSize: { xs: '2.5rem', md: '3.5rem' },
+                }}
+              >
+                Welcome to{' '}
+                <Box component="span" sx={{ fontWeight: 600 }}>
+                  E-Commerce AI
+                </Box>
+              </Typography>
+              <Typography
+                variant="h5"
+                sx={{
+                  mb: 4,
+                  opacity: 0.9,
+                  fontWeight: 300,
+                }}
+              >
+                Discover furniture and home goods with the power of AI. 
+                Get personalized recommendations, visual search, and smart shopping assistance.
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  sx={{
+                    backgroundColor: 'white',
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'grey.100',
+                    },
+                  }}
+                  startIcon={<ShoppingIcon />}
+                >
+                  Shop Now
                 </Button>
-              </SignInButton>
-            </SignedOut>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  sx={{
+                    borderColor: 'white',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      borderColor: 'white',
+                    },
+                  }}
+                  startIcon={<AIIcon />}
+                >
+                  Try AI Features
+                </Button>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  display: { xs: 'none', md: 'block' },
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="h2" sx={{ opacity: 0.3 }}>
+                  🤖✨🛋️
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.7, mt: 2 }}>
+                  AI-Powered Shopping Experience
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
 
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </div>
-        </Toolbar>
-      </AppBar>
-
-      {/* Main Content */}
-      <Container maxWidth="xl" className="pt-20 pb-20 md:pb-8">
-        {/* Hero Section */}
-        <Box className="text-center py-12 md:py-16">
-          <Typography 
-            variant="h2" 
-            component="h1" 
-            className="font-bold text-gray-800 mb-4"
-            sx={{
-              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
-            }}
-          >
-            Welcome to E-Commerce AI
+      {/* AI Features Section */}
+      <Container maxWidth="xl" sx={{ py: 8 }}>
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Typography variant="h2" gutterBottom sx={{ fontWeight: 600 }}>
+            🤖 AI-Powered Features
           </Typography>
-          <Typography 
-            variant="h6" 
-            className="text-gray-600 mb-8 max-w-2xl mx-auto"
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.25rem' }
-            }}
-          >
-            Your modern mobile-first PWA e-commerce experience powered by the latest React stack
+          <Typography variant="h5" color="text.secondary">
+            Experience the future of online shopping
           </Typography>
-          <Box className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              variant="contained" 
-              size="large" 
-              className="text-lg px-8 py-3"
-            >
-              Shop Now
-            </Button>
-            <Button 
-              variant="outlined" 
-              size="large" 
-              className="text-lg px-8 py-3"
-            >
-              Browse Categories
-            </Button>
-          </Box>
         </Box>
 
-        {/* Features Grid */}
-        <Grid container spacing={3} className="my-8">
-          <Grid xs={12} sm={6} md={3}>
-            <Card className="h-full text-center p-4">
-              <CardContent>
-                <Box className="text-primary mb-3">
-                  <ShoppingCart fontSize="large" />
-                </Box>
-                <Typography variant="h6" className="font-semibold mb-2">
-                  Mobile-First Design
-                </Typography>
-                <Typography variant="body2" className="text-gray-600">
-                  Optimized for mobile devices with responsive design
-                </Typography>
-              </CardContent>
-            </Card>
+        <Grid container spacing={4}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                height: '100%',
+                border: '2px solid',
+                borderColor: 'primary.100',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <CameraIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                Visual Search
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Upload a photo to find similar products instantly with our AI-powered visual search
+              </Typography>
+            </Paper>
           </Grid>
-
-          <Grid xs={12} sm={6} md={3}>
-            <Card className="h-full text-center p-4">
-              <CardContent>
-                <Box className="text-primary mb-3">
-                  <GetApp fontSize="large" />
-                </Box>
-                <Typography variant="h6" className="font-semibold mb-2">
-                  PWA Ready
-                </Typography>
-                <Typography variant="body2" className="text-gray-600">
-                  Install as an app on your device for offline access
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                height: '100%',
+                border: '2px solid',
+                borderColor: 'primary.100',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <ChatIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                AI Assistant
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Get personalized shopping advice from our intelligent assistant
+              </Typography>
+            </Paper>
           </Grid>
-
-          <Grid xs={12} sm={6} md={3}>
-            <Card className="h-full text-center p-4">
-              <CardContent>
-                <Box className="text-primary mb-3">
-                  <Favorite fontSize="large" />
-                </Box>
-                <Typography variant="h6" className="font-semibold mb-2">
-                  Latest Stack
-                </Typography>
-                <Typography variant="body2" className="text-gray-600">
-                  Built with Next.js 15, React 19, and TypeScript
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                height: '100%',
+                border: '2px solid',
+                borderColor: 'primary.100',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <AIIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                Smart Recommendations
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Discover products tailored to your style and preferences
+              </Typography>
+            </Paper>
           </Grid>
-
-          <Grid xs={12} sm={6} md={3}>
-            <Card className="h-full text-center p-4">
-              <CardContent>
-                <Box className="text-primary mb-3">
-                  <Person fontSize="large" />
-                </Box>
-                <Typography variant="h6" className="font-semibold mb-2">
-                  Secure Auth
-                </Typography>
-                <Typography variant="body2" className="text-gray-600">
-                  Powered by Clerk with modern authentication
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                height: '100%',
+                border: '2px solid',
+                borderColor: 'primary.100',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <Typography variant="h3" sx={{ mb: 2 }}>🎨</Typography>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                Style Quiz
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Take our style quiz to get curated product collections just for you
+              </Typography>
+            </Paper>
           </Grid>
         </Grid>
-
-        {/* Tech Stack Section */}
-        <Box className="text-center py-12 bg-gray-50 rounded-lg my-8">
-          <Typography variant="h4" className="font-bold mb-6 text-gray-800">
-            Built with Modern Tech
-          </Typography>
-          <Box className="flex flex-wrap justify-center gap-3">
-            {[
-              'Next.js 15', 'React 19', 'TypeScript', 'Material UI v7', 
-              'Tailwind CSS 4', 'Clerk Auth', 'NeonDB', 'Drizzle ORM',
-              'Zustand', 'PWA Ready'
-            ].map((tech) => (
-              <Chip 
-                key={tech} 
-                label={tech} 
-                variant="outlined" 
-                className="text-sm font-medium"
-              />
-            ))}
-          </Box>
-        </Box>
       </Container>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && (
-        <BottomNavigation
-          className="fixed bottom-0 left-0 right-0 border-t safe-area-bottom"
-          showLabels
-        >
-          <BottomNavigationAction label="Home" icon={<Home />} />
-          <BottomNavigationAction label="Categories" icon={<Category />} />
-          <BottomNavigationAction 
-            label="Cart" 
-            icon={
-              <Box className="relative">
-                <ShoppingCart />
-                {itemCount > 0 && (
-                  <Chip 
-                    label={itemCount} 
-                    size="small" 
-                    color="error"
-                    className="absolute -top-2 -right-2 h-4 min-w-4 text-xs"
-                  />
-                )}
-              </Box>
-            } 
-          />
-          <BottomNavigationAction label="Profile" icon={<Person />} />
-        </BottomNavigation>
-      )}
+      {/* Featured Products */}
+      <Box sx={{ backgroundColor: 'grey.50', py: 8 }}>
+        <Container maxWidth="xl">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Box>
+              <Typography variant="h3" gutterBottom sx={{ fontWeight: 600 }}>
+                Featured Products
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                Handpicked by our AI for you
+              </Typography>
+            </Box>
+            <Button variant="outlined">View All</Button>
+          </Box>
 
-      {/* PWA Install Button */}
-      {showInstallButton && (
-        <Fab
-          color="primary"
-          className="fixed bottom-20 right-4 z-50"
-          onClick={handleInstallClick}
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress size={60} />
+            </Box>
+          ) : error ? (
+            <Alert severity="error" sx={{ mb: 4 }}>
+              {error}. Using fallback mode - some features may be limited.
+            </Alert>
+          ) : (
+            <Grid container spacing={3}>
+              {featuredProducts.map((product) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                  <ProductCard 
+                    product={product} 
+                    showQuickView 
+                    aiMatch={product.featured ? 94 : Math.floor(Math.random() * 20) + 80}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Container>
+      </Box>
+
+      {/* AI Recommendations Section */}
+      <Container maxWidth="xl" sx={{ py: 8 }}>
+        <Paper
+          sx={{
+            p: 4,
+            background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+            border: '2px solid',
+            borderColor: 'primary.main',
+          }}
         >
-          <GetApp />
-        </Fab>
-      )}
-    </>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, mr: 2 }}>
+              🤖 AI Recommendations
+            </Typography>
+            <Chip
+              label="92% Match Rate"
+              color="primary"
+              sx={{ fontWeight: 600 }}
+            />
+          </Box>
+          
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
+            Based on your browsing history and preferences
+          </Typography>
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={40} />
+            </Box>
+          ) : (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                    💡 Trending Now
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Popular items in your style category
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {trendingProducts.slice(0, 2).map((product) => (
+                      <Grid item xs={6} key={product.id}>
+                        <ProductCard product={product} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Paper>
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                    🏠 Complete the Look
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Items that pair well with your recent views
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {complementaryProducts.slice(0, 2).map((product) => (
+                      <Grid item xs={6} key={product.id}>
+                        <ProductCard product={product} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Paper>
+              </Grid>
+            </Grid>
+          )}
+
+          <Box sx={{ textAlign: 'center', mt: 4 }}>
+            <Button
+              variant="contained"
+              size="large"
+              sx={{
+                background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+              }}
+            >
+              Explore All AI Recommendations
+            </Button>
+          </Box>
+        </Paper>
+      </Container>
+
+      {/* CTA Section */}
+      <Box
+        sx={{
+          backgroundColor: 'primary.main',
+          color: 'white',
+          py: 8,
+          textAlign: 'center',
+        }}
+      >
+        <Container maxWidth="md">
+          <Typography variant="h3" gutterBottom sx={{ fontWeight: 600 }}>
+            Ready to Experience AI Shopping?
+          </Typography>
+          <Typography variant="h6" sx={{ mb: 4, opacity: 0.9 }}>
+            Join thousands of satisfied customers who have transformed their shopping experience
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              size="large"
+              sx={{
+                backgroundColor: 'white',
+                color: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'grey.100',
+                },
+              }}
+            >
+              Start Shopping
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              sx={{
+                borderColor: 'white',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderColor: 'white',
+                },
+              }}
+            >
+              Learn More
+            </Button>
+          </Box>
+        </Container>
+      </Box>
+    </Box>
   );
 }

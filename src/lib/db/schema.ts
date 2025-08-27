@@ -286,3 +286,348 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
     references: [productVariants.id],
   }),
 }));
+
+// User preferences table for AI personalization
+export const userPreferences = pgTable('user_preferences', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  styleProfile: jsonb('style_profile').$type<{
+    modern?: number;
+    traditional?: number;
+    minimalist?: number;
+    bohemian?: number;
+    industrial?: number;
+    scandinavian?: number;
+  }>(),
+  budgetPreferences: jsonb('budget_preferences').$type<{
+    min: number;
+    max: number;
+    categories: Record<string, { min: number; max: number }>;
+  }>(),
+  preferredCategories: text('preferred_categories').array(),
+  colorPreferences: text('color_preferences').array(),
+  roomTypes: text('room_types').array(),
+  sizePreferences: jsonb('size_preferences').$type<{
+    livingRoom?: string;
+    bedroom?: string;
+    dining?: string;
+    office?: string;
+  }>(),
+  brandPreferences: text('brand_preferences').array(),
+  notificationSettings: jsonb('notification_settings').$type<{
+    priceDrops: boolean;
+    restockAlerts: boolean;
+    newArrivals: boolean;
+    recommendations: boolean;
+  }>().default({
+    priceDrops: true,
+    restockAlerts: true,
+    newArrivals: false,
+    recommendations: true,
+  }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('user_preferences_user_idx').on(table.userId),
+}));
+
+// Product reviews table
+export const productReviews = pgTable('product_reviews', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  orderId: uuid('order_id').references(() => orders.id),
+  rating: integer('rating').notNull(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  pros: text('pros').array(),
+  cons: text('cons').array(),
+  images: text('images').array(),
+  verified: boolean('verified').default(false),
+  helpful: integer('helpful').default(0),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] }).default('pending'),
+  aiSentiment: jsonb('ai_sentiment').$type<{
+    score: number;
+    label: 'positive' | 'neutral' | 'negative';
+    aspects: Record<string, number>;
+  }>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  productIdx: index('product_reviews_product_idx').on(table.productId),
+  userIdx: index('product_reviews_user_idx').on(table.userId),
+  ratingIdx: index('product_reviews_rating_idx').on(table.rating),
+  statusIdx: index('product_reviews_status_idx').on(table.status),
+}));
+
+// Wishlist table
+export const wishlists = pgTable('wishlists', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull().default('My Wishlist'),
+  description: text('description'),
+  isPublic: boolean('is_public').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('wishlists_user_idx').on(table.userId),
+}));
+
+// Wishlist items table
+export const wishlistItems = pgTable('wishlist_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  wishlistId: uuid('wishlist_id').references(() => wishlists.id, { onDelete: 'cascade' }).notNull(),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  variantId: uuid('variant_id').references(() => productVariants.id, { onDelete: 'cascade' }),
+  priority: integer('priority').default(0),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  wishlistIdx: index('wishlist_items_wishlist_idx').on(table.wishlistId),
+  productIdx: index('wishlist_items_product_idx').on(table.productId),
+  uniqueItem: index('wishlist_items_unique_idx').on(table.wishlistId, table.productId, table.variantId),
+}));
+
+// AI search history table
+export const searchHistory = pgTable('search_history', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id'),
+  query: text('query').notNull(),
+  searchType: text('search_type', { enum: ['text', 'visual', 'voice', 'ai_chat'] }).notNull(),
+  imageUrl: text('image_url'),
+  filters: jsonb('filters').$type<Record<string, any>>(),
+  resultsCount: integer('results_count'),
+  clickedProducts: text('clicked_products').array(),
+  resultsSatisfaction: integer('results_satisfaction'),
+  aiConfidence: decimal('ai_confidence', { precision: 5, scale: 4 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('search_history_user_idx').on(table.userId),
+  sessionIdx: index('search_history_session_idx').on(table.sessionId),
+  typeIdx: index('search_history_type_idx').on(table.searchType),
+  createdIdx: index('search_history_created_idx').on(table.createdAt),
+}));
+
+// AI chat conversations table
+export const chatConversations = pgTable('chat_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id'),
+  title: text('title'),
+  context: jsonb('context').$type<{
+    intent?: string;
+    products?: string[];
+    budget?: { min: number; max: number };
+    preferences?: Record<string, any>;
+  }>(),
+  status: text('status', { enum: ['active', 'resolved', 'abandoned'] }).default('active'),
+  satisfaction: integer('satisfaction'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('chat_conversations_user_idx').on(table.userId),
+  sessionIdx: index('chat_conversations_session_idx').on(table.sessionId),
+  statusIdx: index('chat_conversations_status_idx').on(table.status),
+}));
+
+// Chat messages table
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversationId: uuid('conversation_id').references(() => chatConversations.id, { onDelete: 'cascade' }).notNull(),
+  role: text('role', { enum: ['user', 'assistant'] }).notNull(),
+  content: text('content').notNull(),
+  messageType: text('message_type', { enum: ['text', 'product_recommendation', 'image', 'quick_reply'] }).default('text'),
+  metadata: jsonb('metadata').$type<{
+    products?: Array<{
+      id: string;
+      reason?: string;
+      confidence?: number;
+    }>;
+    images?: string[];
+    quickReplies?: string[];
+    aiModel?: string;
+    processingTime?: number;
+  }>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  conversationIdx: index('chat_messages_conversation_idx').on(table.conversationId),
+  roleIdx: index('chat_messages_role_idx').on(table.role),
+  createdIdx: index('chat_messages_created_idx').on(table.createdAt),
+}));
+
+// Product recommendations table (for caching and analytics)
+export const productRecommendations = pgTable('product_recommendations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id'),
+  sourceProductId: uuid('source_product_id').references(() => products.id),
+  recommendedProductId: uuid('recommended_product_id').references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  recommendationType: text('recommendation_type', { 
+    enum: ['similar', 'complementary', 'trending', 'personalized', 'visual_match', 'cross_sell', 'up_sell'] 
+  }).notNull(),
+  score: decimal('score', { precision: 5, scale: 4 }).notNull(),
+  reason: text('reason'),
+  algorithm: text('algorithm').notNull(),
+  context: jsonb('context').$type<Record<string, any>>(),
+  clicked: boolean('clicked').default(false),
+  converted: boolean('converted').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+}, (table) => ({
+  userIdx: index('product_recommendations_user_idx').on(table.userId),
+  sessionIdx: index('product_recommendations_session_idx').on(table.sessionId),
+  sourceIdx: index('product_recommendations_source_idx').on(table.sourceProductId),
+  recommendedIdx: index('product_recommendations_recommended_idx').on(table.recommendedProductId),
+  typeIdx: index('product_recommendations_type_idx').on(table.recommendationType),
+  scoreIdx: index('product_recommendations_score_idx').on(table.score),
+  expiresIdx: index('product_recommendations_expires_idx').on(table.expiresAt),
+}));
+
+// Product analytics table for AI insights
+export const productAnalytics = pgTable('product_analytics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  date: timestamp('date').notNull(),
+  views: integer('views').default(0),
+  clicks: integer('clicks').default(0),
+  addToCarts: integer('add_to_carts').default(0),
+  purchases: integer('purchases').default(0),
+  wishlistAdds: integer('wishlist_adds').default(0),
+  searchRanking: decimal('search_ranking', { precision: 5, scale: 4 }),
+  conversionRate: decimal('conversion_rate', { precision: 5, scale: 4 }),
+  avgRating: decimal('avg_rating', { precision: 3, scale: 2 }),
+  reviewCount: integer('review_count').default(0),
+  returnRate: decimal('return_rate', { precision: 5, scale: 4 }),
+  profitMargin: decimal('profit_margin', { precision: 5, scale: 4 }),
+}, (table) => ({
+  productIdx: index('product_analytics_product_idx').on(table.productId),
+  dateIdx: index('product_analytics_date_idx').on(table.date),
+  uniqueProductDate: primaryKey({ columns: [table.productId, table.date] }),
+}));
+
+// Enhanced relations
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const productReviewsRelations = relations(productReviews, ({ one }) => ({
+  product: one(products, {
+    fields: [productReviews.productId],
+    references: [products.id],
+  }),
+  user: one(users, {
+    fields: [productReviews.userId],
+    references: [users.id],
+  }),
+  order: one(orders, {
+    fields: [productReviews.orderId],
+    references: [orders.id],
+  }),
+}));
+
+export const wishlistsRelations = relations(wishlists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [wishlists.userId],
+    references: [users.id],
+  }),
+  items: many(wishlistItems),
+}));
+
+export const wishlistItemsRelations = relations(wishlistItems, ({ one }) => ({
+  wishlist: one(wishlists, {
+    fields: [wishlistItems.wishlistId],
+    references: [wishlists.id],
+  }),
+  product: one(products, {
+    fields: [wishlistItems.productId],
+    references: [products.id],
+  }),
+  variant: one(productVariants, {
+    fields: [wishlistItems.variantId],
+    references: [productVariants.id],
+  }),
+}));
+
+export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [searchHistory.userId],
+    references: [users.id],
+  }),
+}));
+
+export const chatConversationsRelations = relations(chatConversations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chatConversations.userId],
+    references: [users.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  conversation: one(chatConversations, {
+    fields: [chatMessages.conversationId],
+    references: [chatConversations.id],
+  }),
+}));
+
+export const productRecommendationsRelations = relations(productRecommendations, ({ one }) => ({
+  user: one(users, {
+    fields: [productRecommendations.userId],
+    references: [users.id],
+  }),
+  sourceProduct: one(products, {
+    fields: [productRecommendations.sourceProductId],
+    references: [products.id],
+  }),
+  recommendedProduct: one(products, {
+    fields: [productRecommendations.recommendedProductId],
+    references: [products.id],
+  }),
+}));
+
+export const productAnalyticsRelations = relations(productAnalytics, ({ one }) => ({
+  product: one(products, {
+    fields: [productAnalytics.productId],
+    references: [products.id],
+  }),
+}));
+
+// Update existing relations to include new tables
+export const usersRelationsEnhanced = relations(users, ({ many }) => ({
+  products: many(products),
+  carts: many(carts),
+  orders: many(orders),
+  preferences: many(userPreferences),
+  reviews: many(productReviews),
+  wishlists: many(wishlists),
+  searchHistory: many(searchHistory),
+  chatConversations: many(chatConversations),
+  recommendations: many(productRecommendations),
+}));
+
+export const productsRelationsEnhanced = relations(products, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [products.categoryId],
+    references: [categories.id],
+  }),
+  vendor: one(users, {
+    fields: [products.vendorId],
+    references: [users.id],
+  }),
+  variants: many(productVariants),
+  cartItems: many(cartItems),
+  orderItems: many(orderItems),
+  reviews: many(productReviews),
+  wishlistItems: many(wishlistItems),
+  sourceRecommendations: many(productRecommendations, {
+    relationName: 'sourceProduct',
+  }),
+  targetRecommendations: many(productRecommendations, {
+    relationName: 'recommendedProduct',
+  }),
+  analytics: many(productAnalytics),
+}));

@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Roboto } from "next/font/google";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
 import { ClerkProvider } from '@clerk/nextjs';
-import { theme } from '@/lib/theme';
+import AppThemeProvider from '@/providers/ThemeProvider';
+import RootLayout from '@/components/layout/RootLayout';
 import "./globals.css";
 
 const roboto = Roboto({
@@ -64,7 +63,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -80,10 +79,11 @@ export default function RootLayout({
         </head>
         <body className={`${roboto.variable} font-sans`}>
           <AppRouterCacheProvider>
-            <ThemeProvider theme={theme}>
-              <CssBaseline />
-              {children}
-            </ThemeProvider>
+            <AppThemeProvider>
+              <RootLayout>
+                {children}
+              </RootLayout>
+            </AppThemeProvider>
           </AppRouterCacheProvider>
         </body>
       </html>

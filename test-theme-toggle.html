@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Toggle Test</title>
+</head>
+<body>
+    <h1>Theme Toggle Integration Test</h1>
+    <p>This is a basic HTML file to open alongside the app for manual testing.</p>
+    <p>Test steps:</p>
+    <ol>
+        <li>Open http://localhost:3000 in your browser</li>
+        <li>Look for the theme toggle icon in the top navigation bar (between search and user/cart icons)</li>
+        <li>Click the theme toggle to open the menu</li>
+        <li>Select Light, Dark, or System theme options</li>
+        <li>Verify the app switches between themes properly</li>
+        <li>Test responsive behavior by resizing window or using mobile view</li>
+        <li>Check mobile menu drawer for theme toggle with labels</li>
+    </ol>
+    <script>
+        setTimeout(() => {
+            const testUrl = 'http://localhost:3000';
+            console.log('Testing theme toggle integration at:', testUrl);
+            console.log('Expected elements:');
+            console.log('- Theme toggle button in navigation');
+            console.log('- Theme menu with Light/Dark/System options');
+            console.log('- Theme toggle in mobile drawer');
+            window.open(testUrl, '_blank');
+        }, 1000);
+    </script>
+</body>
+</html>
